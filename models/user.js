@@ -28,18 +28,15 @@ let UserSchema = new Schema(
 UserSchema.pre('save', function(next){
 
     var now = new Date();
-    if(!this.created_at) {
+ 
+    if(this.isNew) {
         this.created_at = now;
     }
-
-    this.updated_at = now;
 
     var user = this;
 
     bcrypt.hash(user.password, 10, function(err, hash){
         if(err){
-            console.log('ER:' , err);
-            console.log('pass: ' , user.password);
             return next(err);
         }
         user.password = hash;
@@ -72,7 +69,7 @@ UserSchema.statics.registerUser = function(userObj, callback){
             if (err.name === 'MongoError' && err.code === 11000) {
                 return callback('That email address allready exists');
             }
-            return callback(err);
+            return callback(err.message, null);
         }
 
         callback(null, user);
@@ -111,6 +108,13 @@ UserSchema.statics.authenticate = function(email, password, callback){
 
     });
 
+};
+
+UserSchema.statics.isAdmin = function(id, callback){
+    this.findById(id, function(err, user){
+        if(err){return callback(err, null);}
+        return callback(null, user.admin);
+    });
 };
 
 //Exports the BookSchema for use elsewhere.

@@ -45,6 +45,8 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.text());                                    
 app.use(bodyParser.json({ type: 'application/json'}));  
 
+app.use('/static', express.static('public'));
+
 // main routes
 var mainRoutes = require('./controllers/main.js');
 app.use('/', mainRoutes);

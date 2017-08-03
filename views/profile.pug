@@ -3,3 +3,10 @@ extends layout
 block content
 
 	h1 Welcome, #{name}
+
+	form(action="/profile", method="post")
+		input(type="text", name="userId", value=`${id}`)
+		input(type="text", name="name")
+		input(type="text", name="password", value="456")
+		input(type="submit")
+

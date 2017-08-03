@@ -74,6 +74,7 @@ mainRoutes.get('/profile', mid.loginRequired, function(req, res){
         }
 
         return res.render('profile', {
+        	id: user._id,
             name: user.name
         });
 
@@ -122,38 +123,69 @@ mainRoutes.put('/profile', mid.jsonLoginRequired, function(req, res){
 	let data = {};
 	data.success = '0';
 
-	var userObj = {
-        name: req.body.name,
-        email: req.body.email,
-        meta: {
-			age: req.body.meta.age,
-			website: req.body.meta.website
-        }  
-    };
+	if(!req.body.userId || !req.body.email || !req.body.meta.age || !req.body.meta.website){
+    	data.error = 'Invalid Data';
+    	res.status(400);
+    	return res.json(data);
+    }
 
-	User.update(req.body.userId, userObj, function(err, numberAffected){
+    User.isAdmin(req.session.userId, function(err, isAdmin){
 
-		if(err){
-			data.error = err;
-			return res.json(data);
-		}
+    	if(!isAdmin){
+    		if(req.session.userId != req.body.userId){
+				data.error = 'unauthorized';
+		    	res.status(403);
+		    	return res.json(data);
+			}
+    	}
 
-		if(numberAffected == 0){
-			data.error = 'Failed to update';
-			return res.json(data);
-		}
+		var userObj = {
+	        name: req.body.name,
+	        updated_at: new Date(),
+	        email: req.body.email,
+	        meta: {
+				age: req.body.meta.age,
+				website: req.body.meta.website
+	        }  
+	    };
 
-		User.findById(req.body.userId, function(err, updatedUser){
+		User.update({"_id": req.body.userId}, userObj, function(err, numberAffected){
 
-			data.success = '1';
-			data.updatedUser = updatedUser;
-			return res.json(data);
+			if(err){
+				if (err.name === 'MongoError' && err.code === 11000) {
+					data.error = 'That email address allready exists';
+					return res.json(data);
+	            }
+	            data.error = 'User not found';
+	            res.status(404);
+				return res.json(data);
+			}
+
+			if(numberAffected.nModified == 0){
+				data.error = 'User not found';
+				res.status(404);
+				return res.json(data);
+			}
+
+			User.findById(req.body.userId, function(err, updatedUser){
+
+				data.success = '1';
+				data.updatedUser = updatedUser;
+				return res.json(data);
+
+			});
 
 		});
 
-	});
+    });
 
 });
+
+// mainRoutes.delete('/profile', mid.jsonLoginRequired, function(req, res){
+
+
+
+// };
 
 module.exports = mainRoutes;
 

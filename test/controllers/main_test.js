@@ -20,7 +20,21 @@ function logBillyIn(callback){
         .send({ email: 'bill@billy.com', password: '123', test: true})
         .end(function (err, res) {
 
-            console.log(res.session);
+            var loggedInUser = res.loggedInUser;
+            res.should.have.a.cookie;
+            callback(agent, loggedInUser);
+            
+        });
+
+}
+
+function logGeorgeAdminIn(callback){
+
+    agent
+        .post('/')
+        .send({ email: 'george@georgy.com', password: '456', test: true})
+        .end(function (err, res) {
+
             var loggedInUser = res.loggedInUser;
             res.should.have.a.cookie;
             callback(agent, loggedInUser);
@@ -62,7 +76,25 @@ describe('main routes', () => {
                     }, function(err, user){
 
                         if(!err){
-                            done();
+
+                            User.registerUser({
+                                name: 'George',
+                                email: 'george@georgy.com',
+                                password: '456',
+                                confirm_password: '456',
+                                admin: true,
+                                meta: {
+                                  age: 22,
+                                  website: 'www.george.com'
+                                }
+                            }, function(err, user){
+
+                                if(!err){
+                                    done();
+                                }
+                            
+                            });
+                            
                         }
                     
                     });
@@ -321,30 +353,73 @@ describe('main routes', () => {
 
             logBillyIn(function(agent){
 
-                User.findOne({'email': 'bill@billy.com'}, function(err, jon){
+                User.findOne({'email': 'bill@billy.com'}, function(err, billy){
 
                     var updatedUser = {
-                        userId: jon._id,
+                        userId: billy._id,
                         name: 'james',
                         email: 'bill@billy.com',
                         meta: {
                             age: 24,
                             website: 'www.billy.com'
                         } 
-                    }
+                    };
 
-                    agent
-                    .put('/profile')
-                    .send(updatedUser)
-                    .end((err, res) => {
-                        res.should.have.status(200);
-                        res.body.should.should.not.have.property('error');
-                        res.body.success.should.equal('1');
-                        res.body.updatedUser.name.should.equal('james');
-                        res.body.updatedUser.updated_at.should.not.equal('');
-                        res.body.updatedUser.updated_at.should.not.equal(res.body.updatedUser.created_at);
-                        done();
-                    });
+                    setTimeout(function(){
+                        
+                        agent
+                        .put('/profile')
+                        .send(updatedUser)
+                        .end((err, res) => {
+                            res.should.have.status(200);
+                            res.body.should.should.not.have.property('error');
+                            res.body.success.should.equal('1');
+                            res.body.updatedUser.name.should.equal('james');
+                            res.body.updatedUser.updated_at.should.not.equal('');
+                            res.body.updatedUser.updated_at.should.not.equal(res.body.updatedUser.created_at);
+                            done();
+                        });
+
+                    }, 2000);
+
+                });
+
+            });
+
+        });
+
+        it('should update users name as logged in user is admin', (done) => {
+
+            logGeorgeAdminIn(function(agent){
+
+                User.findOne({'email': 'bill@billy.com'}, function(err, billy){
+
+                    var updatedUser = {
+                        userId: billy._id,
+                        name: 'jimmy',
+                        email: 'bill@billy.com',
+                        meta: {
+                            age: 24,
+                            website: 'www.billy.com'
+                        } 
+                    };
+
+                    setTimeout(function(){
+                        
+                        agent
+                        .put('/profile')
+                        .send(updatedUser)
+                        .end((err, res) => {
+                            res.should.have.status(200);
+                            res.body.should.should.not.have.property('error');
+                            res.body.success.should.equal('1');
+                            res.body.updatedUser.name.should.equal('jimmy');
+                            res.body.updatedUser.updated_at.should.not.equal('');
+                            res.body.updatedUser.updated_at.should.not.equal(res.body.updatedUser.created_at);
+                            done();
+                        });
+
+                    }, 2000);
 
                 });
 
@@ -354,35 +429,25 @@ describe('main routes', () => {
 
         it('should return error of user not found', (done) => {
 
-            var updatedUser = {
-                name: 'james'
-            }
+            logBillyIn(function(agent){
 
-            chai.request(server)
-            .put('/profile/nonsence')
-            .send(updatedUser)
-            .end((err, res) => {
-                res.should.have.status(200);
-                res.body.error.should.equal('User not found');
-                done();
-            });
-
-        });
-
-        it('should return error of unauthorised', (done) => {
-
-            var updatedUser = {
-                name: 'james'
-            }
-
-            logBillyOut(function(){
-
-                chai.request(server)
-                .put('/profile/nonsence')
+                var updatedUser = {
+                    userId: 'fgdbgfb',
+                    name: 'james',
+                    email: 'bill@bigglly.com',
+                    meta: {
+                        age: 24,
+                        website: 'www.billy.com'
+                    } 
+                };
+                    
+                agent
+                .put('/profile')
                 .send(updatedUser)
                 .end((err, res) => {
                     res.should.have.status(403);
                     res.body.error.should.equal('unauthorized');
+                    res.body.should.not.have.property('updatedUser');
                     done();
                 });
 
@@ -390,16 +455,95 @@ describe('main routes', () => {
 
         });
 
+        it('should return error of invalid data', (done) => {
+
+            logBillyIn(function(agent){
+
+                var updatedUser = {};
+                    
+                agent
+                .put('/profile')
+                .send(updatedUser)
+                .end((err, res) => {
+                    res.should.have.status(400);
+                    res.body.error.should.equal('Invalid Data');
+                    res.body.should.not.have.property('updatedUser');
+                    done();
+                });
+
+            });
+
+        });
+
+        it('should return error of unauthorised as the update is for another user', (done) => {
+
+            logBillyIn(function(agent){
+
+                User.findOne({'email': 'frank@franky.com'}, function(err, franky){
+
+                    var updatedUser = {
+                        userId: franky._id,
+                        name: 'frank',
+                        email: 'frank@franky.com',
+                        meta: {
+                            age: 24,
+                            website: 'www.billy.com'
+                        } 
+                    };
+                        
+                    agent
+                    .put('/profile')
+                    .send(updatedUser)
+                    .end((err, res) => {
+                        res.should.have.status(403);
+                        res.body.error.should.equal('unauthorized');
+                        res.body.should.not.have.property('updatedUser');
+                        done();
+                    });
+
+                });
+
+            });
+
+        });
+
+        it('should return error of unauthorised as not logged in', (done) => {
+
+            User.findOne({'email': 'bill@billy.com'}, function(err, billy){
+
+                    var updatedUser = {
+                        userId: billy._id,
+                        name: 'james',
+                        email: 'bill@billy.com',
+                        meta: {
+                            age: 24,
+                            website: 'www.billy.com'
+                        } 
+                    };
+
+                    chai.request(server)
+                        .put('/profile')
+                        .send(updatedUser)
+                        .end((err, res) => {
+                            res.should.have.status(403);
+                            res.body.error.should.equal('unauthorized');
+                            done();
+                        });
+
+            });
+
+        });
+
     });
 
-    describe('/DELETE profile/:id', () => {
+    describe('/DELETE profile', () => {
 
         it('should delete frank@franky.com user', (done) => {
 
             User.findOne({'email': 'frank@franky.com'}, function(err, jon){
 
                 chai.request(server)
-                .delete('/profile/' + jon._id)
+                .delete('/profile')
                 .end((err, res) => {
                     res.body.should.not.have.property('error');
                     res.body.have.status(200);
@@ -413,7 +557,7 @@ describe('main routes', () => {
         it('should return error user does not exist', (done) => {
 
             chai.request(server)
-            .delete('/profile/nonsence')
+            .delete('/profile')
             .end((err, res) => {
                 res.body.error.should.equal('User not found');
                 res.body.have.status(400);

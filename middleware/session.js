@@ -1,10 +1,24 @@
+const User = require('../models/user');
 
+// redered rounte
 
 function loggedIn(req, res, next) {
     if(req.session && req.session.userId) {
-        return res.redirect('/profile');
+
+        User.findById(req.session.userId, function(err, user){
+            if(user.admin){
+                return res.redirect('/admin');
+
+            }else{
+                return res.redirect('/profile');
+            }
+            return next();
+        });
+
+    }else{
+        return next();
     }
-    return next();
+
 }
 
 function loginRequired(req, res, next) {
@@ -14,8 +28,14 @@ function loginRequired(req, res, next) {
     return res.redirect('/');
 }
 
+// json routes
+
+// function jsonLoginInAdmin(req, res, next){
+    
+// }
+
 function jsonLoginRequired(req, res, next){
-	if(req.session && req.session.userId) {
+    if(req.session && req.session.userId) {
         return next();
     }
     res.status(403);
