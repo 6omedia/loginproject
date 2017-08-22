@@ -60,7 +60,8 @@ describe('User Model', () => {
         it('should have no error', (done) => {
             
         	User.authenticate('bill@billy.com', '123', function(err, user){
-        		err.should.be.null;
+        		should.not.exist(err);
+                done();
         	});
 
         });
@@ -68,7 +69,8 @@ describe('User Model', () => {
         it('should have a user', (done) => {
             
         	User.authenticate('bill@billy.com', '123', function(err, user){
-        		user.should.own.property('_id');
+        		user.should.have.property('_id');
+                done();
         	});
 
         });
@@ -76,8 +78,9 @@ describe('User Model', () => {
         it('should return error', (done) => {
             
         	User.authenticate('bill@billy.com', 'hjkhjk', function(err, user){
-        		err.should.not.be.null;
-        	});
+        		should.exist(err);
+        	    done();
+            });
 
         });
 

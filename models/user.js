@@ -82,8 +82,6 @@ UserSchema.statics.authenticate = function(email, password, callback){
 
     this.findOne({'email': email}, function(err, user){
 
-        // console.log('yeahhhhhh ', err, user);
-
         if(err){
             err.status = 400;
             return callback(err, null);

@@ -75,7 +75,9 @@ mainRoutes.get('/profile', mid.loginRequired, function(req, res){
 
         return res.render('profile', {
         	id: user._id,
-            name: user.name
+            name: user.name,
+            age: user.meta.age,
+            website: user.meta.website
         });
 
     });
@@ -118,7 +120,7 @@ mainRoutes.post('/register', function(req, res){
 
 });
 
-mainRoutes.put('/profile', mid.jsonLoginRequired, function(req, res){
+mainRoutes.post('/profile', mid.jsonLoginRequired, function(req, res){
 
 	let data = {};
 	data.success = '0';
@@ -181,11 +183,36 @@ mainRoutes.put('/profile', mid.jsonLoginRequired, function(req, res){
 
 });
 
-// mainRoutes.delete('/profile', mid.jsonLoginRequired, function(req, res){
+mainRoutes.delete('/profile/:userId', mid.jsonLoginRequired, function(req, res){
 
+	let data = {};
 
+	const userId = req.params.userId;
 
-// };
+	User.isAdmin(req.session.userId, function(err, isAdmin){
+
+    	if(!isAdmin){
+    		if(req.session.userId != userId){
+				data.error = 'unauthorized';
+		    	res.status(403);
+		    	return res.json(data);
+			}
+    	}
+
+    	User.findByIdAndRemove(userId, function(err, user){  
+    		if(err){
+    			data.error = 'User ID does not exist';
+    			res.status(400);
+    			return res.send(data);
+    		}
+
+    		res.status(200);
+		    return res.send(data);
+		});
+
+    });
+
+});
 
 module.exports = mainRoutes;
 

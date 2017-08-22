@@ -32,7 +32,7 @@ function logGeorgeAdminIn(callback){
 
     agent
         .post('/')
-        .send({ email: 'george@georgy.com', password: '456', test: true})
+        .send({ email: 'george@georgy.com', password: '456', test: true, admin: true})
         .end(function (err, res) {
 
             var loggedInUser = res.loggedInUser;
@@ -347,7 +347,7 @@ describe('main routes', () => {
 
     });
 
-    describe('/PUT profile', () => {
+    describe('/POST profile', () => {
 
         it('should update users name', (done) => {
 
@@ -368,7 +368,7 @@ describe('main routes', () => {
                     setTimeout(function(){
                         
                         agent
-                        .put('/profile')
+                        .post('/profile')
                         .send(updatedUser)
                         .end((err, res) => {
                             res.should.have.status(200);
@@ -407,7 +407,7 @@ describe('main routes', () => {
                     setTimeout(function(){
                         
                         agent
-                        .put('/profile')
+                        .post('/profile')
                         .send(updatedUser)
                         .end((err, res) => {
                             res.should.have.status(200);
@@ -442,7 +442,7 @@ describe('main routes', () => {
                 };
                     
                 agent
-                .put('/profile')
+                .post('/profile')
                 .send(updatedUser)
                 .end((err, res) => {
                     res.should.have.status(403);
@@ -462,7 +462,7 @@ describe('main routes', () => {
                 var updatedUser = {};
                     
                 agent
-                .put('/profile')
+                .post('/profile')
                 .send(updatedUser)
                 .end((err, res) => {
                     res.should.have.status(400);
@@ -492,7 +492,7 @@ describe('main routes', () => {
                     };
                         
                     agent
-                    .put('/profile')
+                    .post('/profile')
                     .send(updatedUser)
                     .end((err, res) => {
                         res.should.have.status(403);
@@ -522,7 +522,7 @@ describe('main routes', () => {
                     };
 
                     chai.request(server)
-                        .put('/profile')
+                        .post('/profile')
                         .send(updatedUser)
                         .end((err, res) => {
                             res.should.have.status(403);
@@ -536,18 +536,63 @@ describe('main routes', () => {
 
     });
 
-    describe('/DELETE profile', () => {
+    describe('/DELETE profile/:userId', () => {
 
-        it('should delete frank@franky.com user', (done) => {
+        it('should return unauthorised as user is not logged in', (done) => {
 
             User.findOne({'email': 'frank@franky.com'}, function(err, jon){
 
                 chai.request(server)
-                .delete('/profile')
-                .end((err, res) => {
-                    res.body.should.not.have.property('error');
-                    res.body.have.status(200);
-                    done();
+                    .delete('/profile/' + jon._id)
+                    .end((err, res) => {
+                        res.body.should.have.property('error');
+                        res.body.error.should.equal('unauthorized');
+                        res.should.have.status(403);
+                        done();
+                    });
+
+            });
+
+        });
+
+        it('should return unauthorised as user is not admin and cant delete others profiles', (done) => {
+            
+            logBillyIn(function(agent){
+
+                User.findOne({'email': 'frank@franky.com'}, function(err, frank){
+
+                    agent.delete('/profile/' + frank._id)
+                        .end((err, res) => {
+                            res.body.should.have.property('error');
+                            res.body.error.should.equal('unauthorized');
+                            res.should.have.status(403);
+                            done();
+                        });
+
+                });
+
+            });
+
+        });    
+
+        it('should delete user as user is logged in and admin', (done) => {
+            
+            logGeorgeAdminIn(function(agent){
+
+                User.findOne({'email': 'frank@franky.com'}, function(err, frank){
+
+                    agent.delete('/profile/' + frank._id)
+                        .end((err, res) => {
+                            res.body.should.not.have.property('error');
+                            res.should.have.status(200);
+
+                            User.findOne({'email': 'frank@franky.com'}, function(err, frank){
+                                should.not.exist(frank);
+                                done();
+                            });
+
+                        });
+
                 });
 
             });
@@ -555,13 +600,40 @@ describe('main routes', () => {
         });
 
         it('should return error user does not exist', (done) => {
+            
+            logGeorgeAdminIn(function(agent){
 
-            chai.request(server)
-            .delete('/profile')
-            .end((err, res) => {
-                res.body.error.should.equal('User not found');
-                res.body.have.status(400);
-                done();
+                agent.delete('/profile/8978978978978979')
+                        .end((err, res) => {
+                            res.body.should.have.property('error');
+                            res.body.error.should.equal('User ID does not exist');
+                            res.should.have.status(400);
+                            done();
+                        });
+
+            });
+
+        });
+
+        it('should delete user as user is logged in and are themselves', (done) => {
+            
+            logBillyIn(function(agent){
+
+                User.findOne({'email': 'bill@billy.com'}, function(err, bill){
+
+                    agent.delete('/profile/' + bill._id)
+                        .end((err, res) => {
+                            res.body.should.not.have.property('error');
+                            res.should.have.status(200);
+
+                            User.findOne({'email': 'bill@billy.com'}, function(err, bill){
+                                should.not.exist(bill);
+                                done();
+                            });
+                        });
+
+                });
+
             });
 
         });
